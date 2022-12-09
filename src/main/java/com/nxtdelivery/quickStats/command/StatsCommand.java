@@ -13,22 +13,27 @@ import net.minecraft.util.BlockPos;
 import net.minecraft.util.ChatComponentText;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static net.minecraft.command.CommandBase.getListOfStringsMatchingLastWord;
 
 public class StatsCommand implements ICommand {
 
-    private final List<String> aliases;
-    private static final Minecraft mc = Minecraft.getMinecraft();
+    private final Map<String, String> aliases;
+    private final Set<String> validAliases;
+    private final Minecraft mc = Minecraft.getMinecraft();
 
     public StatsCommand() {
-        aliases = new ArrayList<>();
-        aliases.add("qsts");
-        aliases.add("quickstats");
-        aliases.add("qs");
+        aliases = new HashMap<>();
+        aliases.put("qsts", "quickStats");
+        aliases.put("quickstats", "quickStats");
+        aliases.put("qs", "quickStats");
+
+        validAliases = new HashSet<>(aliases.keySet());
     }
 
     @Override
@@ -48,13 +53,18 @@ public class StatsCommand implements ICommand {
 
     @Override
     public List<String> getCommandAliases() {
-        return this.aliases;
+        return new ArrayList<>(validAliases);
     }
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) throws CommandException {
         try {
-            switch (args[0]) {
+            final String alias = args[0];
+            if (!validAliases.contains(alias)) {
+                throw new CommandException("Invalid alias: " + alias);
+            }
+            final String command = aliases.get(alias);
+            switch (command) {
                 case "configure":
                 case "config":
                 case "cfg":
@@ -104,46 +114,12 @@ public class StatsCommand implements ICommand {
                     } else {
                         QuickStats.GuiInst.showGUI(args[0]);
                     }
-                    try {
-                        if (args.length == 2) {
-                            switch (args[1].toUpperCase()) {
-                                case "BEDWARS":
-                                case "BW":
-                                case "BEDWAR":
-                                    LocrawUtil.gameType = "BEDWARS";
-                                    break;
-                                case "SW":
-                                case "SKYWARS":
-                                case "SKYWAR":
-                                    LocrawUtil.gameType = "SKYWARS";
-                                    break;
-                                case "QC":
-                                case "QK":
-                                case "QUAKE":
-                                    LocrawUtil.gameType = "solo";
-                                    break;
-                                case "DUEL":
-                                case "DUELS":
-                                case "DL":
-                                    LocrawUtil.gameType = "DUELS";
-                                    break;
-                                default:
-                                    LocrawUtil.gameType = args[1].toUpperCase();
-                                    break;
-                            }
-                        }
-                    } catch (Exception e) {
-                        if (GUIConfig.debugMode) {
-                            e.printStackTrace();
-                        }
-                    }
                     break;
             }
         } catch (Exception e) {
-            sender.addChatMessage(new ChatComponentText(Reference.COLOR
-                    + "[QuickStats] Command menu (mod version " + Reference.VERSION + ")"));
-            sender.addChatMessage(new ChatComponentText(Reference.COLOR
-                    + "[QuickStats] Command usage: /quickstats <name>, /quickstats configure, /quickstats reload, /quickstats api <api key>"));
+            if (GUIConfig.debugMode) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -154,19 +130,16 @@ public class StatsCommand implements ICommand {
 
     @Override
     public List<String> addTabCompletionOptions(ICommandSender sender, String[] args, BlockPos pos) {
-        try {
-            Collection<NetworkPlayerInfo> players = mc.getNetHandler().getPlayerInfoMap();
-            List<String> list = new ArrayList<>();
-            for (NetworkPlayerInfo info : players) {
-                list.add(info.getGameProfile().getName());
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(args, validAliases);
+        } else if (args.length == 2 && args[0].equals("api")) {
+            Collection<NetworkPlayerInfo> players = mc.thePlayer.sendQueue.getPlayerInfoMap();
+            List<String> playerNames = new ArrayList<>();
+            for (NetworkPlayerInfo player : players) {
+                playerNames.add(player.getGameProfile().getName());
             }
-
-            if (args.length == 1) return getListOfStringsMatchingLastWord(args, list.toArray(new String[0]));
-            else return null;
-        } catch (Exception e) {
-            if (GUIConfig.debugMode) {
-                e.printStackTrace();
-            }
+            return getListOfStringsMatchingLastWord(args, playerNames);
+        } else {
             return null;
         }
     }
@@ -175,5 +148,4 @@ public class StatsCommand implements ICommand {
     public boolean isUsernameIndex(String[] args, int index) {
         return false;
     }
-
 }
