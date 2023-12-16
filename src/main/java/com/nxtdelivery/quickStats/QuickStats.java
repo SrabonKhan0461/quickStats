@@ -22,6 +22,7 @@ import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IChatComponent;
 import net.minecraftforge.client.ClientCommandHandler;
+import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
@@ -42,7 +43,7 @@ import java.io.File;
 @Mod(modid = Reference.MODID, name = Reference.NAME, version = Reference.VERSION)
 public class QuickStats {
 
-    @Mod.Instance("qSts") // variables and things
+    @Mod.Instance("qSts")
     public static QuickStats instance;
     private static final Minecraft mc = Minecraft.getMinecraft();
     private KeyBinding statsKey;
@@ -95,35 +96,40 @@ public class QuickStats {
     }
 
     @SubscribeEvent
-    public void onKeyPress(InputEvent.KeyInputEvent event) {
+    public void onInputEvent(InputEvent event) {
         if (onHypixel || GUIConfig.otherServer) {
-            if (Keyboard.getEventKey() == statsKey.getKeyCode() && GUIConfig.modEnabled) {
-                if (GUIConfig.key != statsKey.getKeyCode()) {                // will write new key code if the player changed it in settings
-                    LOGGER.warn("Key code from config (" + GUIConfig.key + ") differs to key code just used! (" + statsKey.getKeyCode() + ") writing new to config file...");
-                    GUIConfig.key = Keyboard.getEventKey();
-                    GUIConfig.INSTANCE.markDirty();
-                    GUIConfig.INSTANCE.writeData();
-                }
-                if (Keyboard.getEventKeyState()) {
-                    try {
-                        Entity entity = GetEntity.get(0);
-                        if (entity instanceof EntityPlayer) {
-                            if (entity.getName() == null || entity.getName().equals("")) {
-                                return;
-                            }
-                            if (onHypixel) {
-                                if (entity.getDisplayName().getUnformattedText().startsWith("\u00A78[NPC]") || !entity.getDisplayName().getUnformattedText().startsWith("\u00A7")) {      // npc test
+            int keyCode;
+
+            if (event instanceof InputEvent.MouseInputEvent) {
+                keyCode = ((InputEvent.MouseInputEvent) event).getButton() + 100; // Adding 100 to distinguish mouse buttons
+            } else {
+                keyCode = Keyboard.getEventKey();
+            }
+
+            if (keyCode == statsKey.getKeyCode() && GUIConfig.modEnabled) {
+                if (GUIConfig.key != keyCode) {
+                    if (Keyboard.getEventKeyState()) {
+                        try {
+                            Entity entity = GetEntity.get(0);
+                            if (entity instanceof EntityPlayer) {
+                                if (entity.getName() == null || entity.getName().equals("")) {
                                     return;
                                 }
+                                if (onHypixel) {
+                                    if (entity.getDisplayName().getUnformattedText().startsWith("\u00A78[NPC]") || !entity.getDisplayName().getUnformattedText().startsWith("\u00A7")) {
+                                        return;
+                                    }
+                                }
+                                GuiInst.showGUI(entity.getName());
                             }
-                            GuiInst.showGUI(entity.getName());
+                        } catch (Exception ignored) {
                         }
-                    } catch (Exception ignored) {
                     }
                 }
             }
         }
     }
+// ... (Previous code remains unchanged)
 
     @SubscribeEvent
     public void onChatReceive(ClientChatReceivedEvent event) {
@@ -325,5 +331,4 @@ public class QuickStats {
             LOGGER.error("skipping update message, bad world return!");
         }
     }
-
 }
